@@ -1,0 +1,38 @@
+package com.myspace.razorpayclone.common.exceptions;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public record ErrorResponse (
+        String errorCode,
+        String errorDescription,
+        LocalDateTime timestamp,
+        List<FieldError> fieldErrors
+) {
+
+    record FieldError(
+            String field,
+            String message
+    ) { }
+
+    static ErrorResponse of(String errorCode, String errorDescription) {
+        return new ErrorResponse(
+                errorCode,
+                errorDescription,
+                LocalDateTime.now(),
+                null
+        );
+    }
+
+    static ErrorResponse of(String errorCode, String errorDescription, List<FieldError> fieldErrors) {
+        return new ErrorResponse(
+                errorCode,
+                errorDescription,
+                LocalDateTime.now(),
+                fieldErrors
+        );
+    }
+}
