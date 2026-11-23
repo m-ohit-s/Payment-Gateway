@@ -12,12 +12,14 @@ import com.myspace.razorpayclone.operations.entity.SettlementPaymentId;
 import com.myspace.razorpayclone.operations.repository.SettlementPaymentRepository;
 import com.myspace.razorpayclone.operations.repository.SettlementRepository;
 import com.myspace.razorpayclone.operations.settlement.dto.BankTransferResult;
+import com.myspace.razorpayclone.payment.api.IPaymentLookupService;
 import com.myspace.razorpayclone.payment.entity.Payment;
 import com.myspace.razorpayclone.payment.outbox.OutboxEventPublisher;
 import com.myspace.razorpayclone.payment.service.impl.PaymentLookupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -27,14 +29,13 @@ import java.util.*;
 @Slf4j
 @RequiredArgsConstructor
 public class SettlementTransactionExecutor {
-    private final PaymentLookupService paymentLookupService;
+    private final IPaymentLookupService paymentLookupService;
     private final SettlementRepository settlementRepository;
     private final SettlementPaymentRepository settlementPaymentRepository;
     private final IMerchantLookupService merchantLookupService;
     private final IBankTransferProcessor bankTransferProcessor;
     private static final double FEE_RATE = 0.02;
     private static final double GST_RATE = 0.18;
-    //TODO: publisher inside its own db
     private final OutboxEventPublisher outboxEventPublisher;
 
     public void processForMerchant(UUID merchantId, LocalDate settlementDate) {
@@ -48,7 +49,7 @@ public class SettlementTransactionExecutor {
                 .orElseThrow();
 
         int fee = Math.toIntExact(Math.round(gross.getAmountUnits() * FEE_RATE));
-        int gst = Math.toIntExact(Math.round(gross.getAmountUnits() * GST_RATE));
+        int gst = Math.toIntExact(Math.round(fee * GST_RATE));
         Money feeMoney = Money.of(fee, gross.getCurrency());
         Money gstMoney = Money.of(gst, gross.getCurrency());
         Money netMoney = gross
@@ -74,6 +75,8 @@ public class SettlementTransactionExecutor {
                 );
             }
             settlementPaymentRepository.saveAll(links);
+
+            paymentLookupService.markPaymentsSettled(unsettledPayments);
 
             SettlementBankDetails bankDetails = merchantLookupService.getSettlementBankDetails(merchantId);
             // call the bank transfer service to transfer amount to merchant's bank
@@ -106,13 +109,13 @@ public class SettlementTransactionExecutor {
             outboxEventPublisher.publish(
                     EventAggregateType.SETTLEMENT,
                     settlementId,
-                  "SETTLEMENT_PROCESSED",
+                    "SETTLEMENT_PROCESSED",
                     Map.of(
                             "settlementId", settlementId,
                             "merchantId", settlement.getMerchantId(),
                             "amount", settlement.getNetAmount().getAmountUnits(),
-                           "status", settlement.getStatus().name(),
-                           "currency", settlement.getNetAmount().getCurrency()
+                            "status", settlement.getStatus().name(),
+                            "currency", settlement.getNetAmount().getCurrency()
                     )
             );
         } else {

@@ -23,7 +23,7 @@ public class SettlementEngine {
     private final IMerchantLookupService merchantLookupService;
     private final SettlementTransactionExecutor settlementTransactionExecutor;
 
-    @Scheduled(cron = "*/30 * * * * *")
+    @Scheduled(cron = "0 */5 * * * *")
     public void runScheduled() {
         log.info("Nightly Settlement Engine started");
         run();
