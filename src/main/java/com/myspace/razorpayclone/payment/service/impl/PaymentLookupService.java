@@ -26,12 +26,13 @@ public class PaymentLookupService implements IPaymentLookupService {
 
     @Override
     @Transactional
-    public void markPaymentsSettled(List<Payment> settledPayments) {
+    public void markPaymentsSettled(List<UUID> settledPaymentIds) {
         LocalDateTime now = LocalDateTime.now();
-        for (Payment payment : settledPayments) {
+        List<Payment> payments = paymentRepository.findAllById(settledPaymentIds);
+        for (Payment payment : payments) {
             payment.setStatus(PaymentStatus.SETTLED);
             payment.setSettledAt(now);
         }
-        paymentRepository.saveAll(settledPayments);
+        paymentRepository.saveAll(payments);
     }
 }

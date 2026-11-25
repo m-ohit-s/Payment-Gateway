@@ -76,8 +76,6 @@ public class SettlementTransactionExecutor {
             }
             settlementPaymentRepository.saveAll(links);
 
-            paymentLookupService.markPaymentsSettled(unsettledPayments);
-
             SettlementBankDetails bankDetails = merchantLookupService.getSettlementBankDetails(merchantId);
             // call the bank transfer service to transfer amount to merchant's bank
             BankTransferResult result = bankTransferProcessor.initiate(settlement.getId(), merchantId, netMoney, bankDetails.accountNumber(), bankDetails.ifsc());
@@ -106,6 +104,13 @@ public class SettlementTransactionExecutor {
             settlement.setProcessedAt(LocalDateTime.now());
             settlementRepository.save(settlement);
             log.info("Settlement processed for settlement : {}", settlement.getId());
+
+            List<SettlementPayment> settlementPayments = settlementPaymentRepository.findBySettlement(settlement);
+            List<UUID> paymentIds = settlementPayments.stream()
+                    .map(SettlementPayment::getId)
+                    .map(SettlementPaymentId::getPaymentId)
+                    .toList();
+            paymentLookupService.markPaymentsSettled(paymentIds);
             outboxEventPublisher.publish(
                     EventAggregateType.SETTLEMENT,
                     settlementId,

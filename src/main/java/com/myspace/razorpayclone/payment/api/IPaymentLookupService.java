@@ -9,5 +9,5 @@ import java.util.UUID;
 public interface IPaymentLookupService {
     List<Payment> findUnsettledCapturedPayments(UUID merchantId);
 
-    void markPaymentsSettled(List<Payment> unsettledPayments);
+    void markPaymentsSettled(List<UUID> settledPaymentIds);
 }
